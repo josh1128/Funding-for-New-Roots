@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="New Roots CLT Grant Finder", layout="wide")
-st.title("📌 New Roots CLT – Automated Grant Finder (Enhanced Version)")
+st.title("📌 New Roots CLT – Automated Grant Finder (Expanded Sources)")
 st.write("This dashboard automatically scrapes funding opportunities from multiple Canadian sources.")
 
 # --------------------------------------------------------
@@ -53,7 +53,6 @@ def scrape_chrc():
 
 
 def scrape_red_cross():
-    """ Red Cross Community Grants """
     url = "https://www.redcross.ca/how-we-help/emergencies-and-disasters-in-canada/financial-assistance"
     html = safe_get(url)
     if html is None:
@@ -76,7 +75,6 @@ def scrape_red_cross():
 
 
 def scrape_cmhc_seed():
-    """ CMHC Seed Funding """
     url = "https://www.cmhc-schl.gc.ca/en/financing-and-funding/funding-programs/all-funding-programs/seed-funding"
     html = safe_get(url)
     if html is None:
@@ -94,11 +92,8 @@ def scrape_cmhc_seed():
 
 
 def scrape_cmhc_co_invest():
-    """ CMHC Co-Investment Fund """
     url = "https://www.cmhc-schl.gc.ca/en/financing-and-funding/funding-programs/co-investment-fund"
     html = safe_get(url)
-    if html is None:
-        return []
     return [{
         "Source": "CMHC",
         "Title": "Co-Investment Fund",
@@ -110,7 +105,6 @@ def scrape_cmhc_co_invest():
 
 
 def scrape_infrastructure_canada():
-    """ Infrastructure Canada Programs """
     url = "https://www.infrastructure.gc.ca/plan/programs-eng.html"
     html = safe_get(url)
     if html is None:
@@ -133,7 +127,6 @@ def scrape_infrastructure_canada():
 
 
 def scrape_hrm_grants():
-    """ HRM Community Grants """
     url = "https://www.halifax.ca/community/community-grants"
     html = safe_get(url)
     if html is None:
@@ -156,7 +149,6 @@ def scrape_hrm_grants():
 
 
 def scrape_united_way_halifax():
-    """ United Way Halifax """
     url = "https://www.unitedwayhalifax.ca/"
     html = safe_get(url)
     if html is None:
@@ -166,20 +158,18 @@ def scrape_united_way_halifax():
     for a in soup.find_all("a"):
         title = a.get_text(strip=True)
         if "grant" in title.lower() or "fund" in title.lower():
-            link = a["href"]
             grants.append({
                 "Source": "United Way Halifax",
                 "Title": title,
                 "Deadline": "Varies",
                 "Amount": "Varies",
                 "Category": "Community / Poverty Reduction",
-                "Link": link
+                "Link": a["href"]
             })
     return grants
 
 
 def scrape_cfc():
-    """ Community Foundations of Canada """
     url = "https://communityfoundations.ca/news/"
     html = safe_get(url)
     if html is None:
@@ -188,9 +178,9 @@ def scrape_cfc():
     grants = []
     for item in soup.find_all("h3"):
         title = item.get_text(strip=True)
+        parent = item.find_parent("a")
+        link = parent["href"] if parent else None
         if "grant" in title.lower() or "fund" in title.lower():
-            parent = item.find_parent("a")
-            link = parent["href"] if parent else None
             grants.append({
                 "Source": "CFC",
                 "Title": title,
@@ -203,7 +193,6 @@ def scrape_cfc():
 
 
 def scrape_google_org():
-    """ Google.org Community Grants """
     url = "https://www.google.org/"
     html = safe_get(url)
     if html is None:
@@ -225,11 +214,7 @@ def scrape_google_org():
 
 
 def scrape_td_ready_commitment():
-    """ TD Bank - Ready Commitment Grants """
     url = "https://www.td.com/ca/en/about-td/ready-commitment/funding"
-    html = safe_get(url)
-    if html is None:
-        return []
     return [{
         "Source": "TD Ready Commitment",
         "Title": "TD Community Grants",
@@ -241,7 +226,6 @@ def scrape_td_ready_commitment():
 
 
 def scrape_rbc_foundation():
-    """ RBC Foundation Grants """
     url = "https://www.rbc.com/community-social-impact/programs.html"
     html = safe_get(url)
     if html is None:
@@ -263,11 +247,7 @@ def scrape_rbc_foundation():
 
 
 def scrape_vancity():
-    """ Vancity Grants """
     url = "https://www.vancity.com/AboutVancity/Community"
-    html = safe_get(url)
-    if html is None:
-        return []
     return [{
         "Source": "Vancity",
         "Title": "Vancity Community Grants",
@@ -278,9 +258,213 @@ def scrape_vancity():
     }]
 
 
+# ------------------------------
+# NEW SOURCES
+# ------------------------------
+
+def scrape_gc_funding():
+    url = "https://www.canada.ca/en/services/grants.html"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for a in soup.find_all("a"):
+        text = a.get_text(strip=True)
+        if "grant" in text.lower() or "fund" in text.lower():
+            grants.append({
+                "Source": "Government of Canada",
+                "Title": text,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "Federal / Community",
+                "Link": a.get("href"),
+            })
+    return grants
+
+
+def scrape_esdc():
+    url = "https://www.canada.ca/en/employment-social-development/programs.html"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for a in soup.find_all("a"):
+        text = a.get_text(strip=True)
+        if "grant" in text.lower() or "fund" in text.lower():
+            grants.append({
+                "Source": "ESDC",
+                "Title": text,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "Poverty / Community / Skills",
+                "Link": a.get("href"),
+            })
+    return grants
+
+
+def scrape_wage():
+    url = "https://women-gender-equality.canada.ca/en/funding.html"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for h3 in soup.find_all("h3"):
+        title = h3.get_text(strip=True)
+        a = h3.find("a")
+        if a and ("fund" in title.lower() or "grant" in title.lower()):
+            grants.append({
+                "Source": "WAGE",
+                "Title": title,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "Anti-Racism / Gender Equality",
+                "Link": a["href"],
+            })
+    return grants
+
+
+def scrape_crrf():
+    url = "https://www.crrf-fcrr.ca/en/resources/funding"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for a in soup.find_all("a"):
+        text = a.get_text(strip=True)
+        if "grant" in text.lower() or "fund" in text.lower():
+            grants.append({
+                "Source": "CRRF",
+                "Title": text,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "Anti-Racism / Equity",
+                "Link": a.get("href"),
+            })
+    return grants
+
+
+def scrape_chrc_bipoc():
+    url = "https://www.communityhousingtransformation.ca/en/funding/bipoc"
+    html = safe_get(url)
+    if html is None: 
+        return []
+    soup = BeautifulSoup(html, "html.parser")
+    title = soup.find("h1")
+    if not title:
+        return []
+    return [{
+        "Source": "CHTC BIPOC",
+        "Title": title.get_text(strip=True),
+        "Deadline": "Varies",
+        "Amount": "Varies",
+        "Category": "Housing / Anti-Racism",
+        "Link": url
+    }]
+
+
+def scrape_ns_culture():
+    url = "https://cch.novascotia.ca/funding-programs"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for a in soup.find_all("a"):
+        t = a.get_text(strip=True)
+        if "grant" in t.lower() or "fund" in t.lower():
+            grants.append({
+                "Source": "NS Culture",
+                "Title": t,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "Culture / Community / ANS",
+                "Link": a.get("href"),
+            })
+    return grants
+
+
+def scrape_bbi():
+    url = "https://www.bbi.ca/programs"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for a in soup.find_all("a"):
+        t = a.get_text(strip=True)
+        if any(word in t.lower() for word in ["grant", "fund", "program"]):
+            grants.append({
+                "Source": "BBI",
+                "Title": t,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "Black Business / Economic Empowerment",
+                "Link": a.get("href"),
+            })
+    return grants
+
+
+def scrape_bof():
+    url = "https://blackopportunityfund.ca/"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for a in soup.find_all("a"):
+        t = a.get_text(strip=True)
+        if "fund" in t.lower() or "grant" in t.lower():
+            grants.append({
+                "Source": "Black Opportunity Fund",
+                "Title": t,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "BIPOC / Anti-Racism / Community",
+                "Link": a["href"],
+            })
+    return grants
+
+
+def scrape_united_way_canada():
+    url = "https://www.unitedway.ca/blog/category/grants/"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    grants = []
+    for h2 in soup.find_all("h2"):
+        t = h2.get_text(strip=True)
+        a = h2.find("a")
+        if a:
+            grants.append({
+                "Source": "United Way Canada",
+                "Title": t,
+                "Deadline": "Varies",
+                "Amount": "Varies",
+                "Category": "Community / Financial Literacy",
+                "Link": a["href"],
+            })
+    return grants
+
+
+def scrape_narf():
+    url = "https://www.crrf-fcrr.ca/en/programs/national-anti-racism-fund"
+    html = safe_get(url)
+    if html is None: return []
+    soup = BeautifulSoup(html, "html.parser")
+    title = soup.find("h1")
+    if title:
+        return [{
+            "Source": "National Anti-Racism Fund",
+            "Title": title.get_text(strip=True),
+            "Deadline": "Varies",
+            "Amount": "Varies",
+            "Category": "Anti-Racism / Black Communities",
+            "Link": url,
+        }]
+    return []
+
+
 # --------------------------------------------------------
 # LOAD EVERYTHING
 # --------------------------------------------------------
+
 @st.cache_data(ttl=7200)
 def load_all():
     df = pd.DataFrame([
@@ -296,14 +480,28 @@ def load_all():
         *scrape_td_ready_commitment(),
         *scrape_rbc_foundation(),
         *scrape_vancity(),
+
+        # NEW SOURCES
+        *scrape_gc_funding(),
+        *scrape_esdc(),
+        *scrape_wage(),
+        *scrape_crrf(),
+        *scrape_chrc_bipoc(),
+        *scrape_ns_culture(),
+        *scrape_bbi(),
+        *scrape_bof(),
+        *scrape_united_way_canada(),
+        *scrape_narf(),
     ])
     return df
+
 
 df = load_all()
 
 # --------------------------------------------------------
 # FILTERS
 # --------------------------------------------------------
+
 st.sidebar.header("🔍 Filters")
 
 keyword = st.sidebar.text_input("Search keyword")
@@ -322,6 +520,7 @@ if keyword:
 # --------------------------------------------------------
 # DISPLAY RESULTS
 # --------------------------------------------------------
+
 st.subheader("📑 Funding Opportunities")
 st.dataframe(results, use_container_width=True)
 
