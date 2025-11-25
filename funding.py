@@ -1,332 +1,91 @@
 import streamlit as st
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
+from datetime import datetime
+import re
 
-st.set_page_config(page_title="New Roots CLT Grant Finder", layout="wide")
-st.title("📌 New Roots CLT – Automated Grant Finder (Enhanced Version)")
-st.write("This dashboard automatically scrapes funding opportunities from multiple Canadian sources.")
+st.set_page_config(page_title="New Roots CLT Grant Scanner", layout="wide")
+st.title("📌 New Roots CLT – Future Grants Finder (Post-2026 Only)")
 
-# --------------------------------------------------------
-# Utility function: Safe Request
-# --------------------------------------------------------
+# ----------------------------
+# KEYWORD FILTERS (New Roots)
+# ----------------------------
+NEW_ROOTS_KEYWORDS = [
+    "anti-black", "anti black", "anti racism", "anti-racism", "black communities",
+    "BIPOC", "African Nova Scotian", "diaspora", "racial equity", "equity",
 
-def safe_get(url):
-    """Returns page content or None if blocked/failed."""
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=10)
-        if r.status_code == 200:
-            return r.text
+    "financial literacy", "economic empowerment", "business development",
+    "entrepreneurship", "capacity building",
+
+    "affordable housing", "housing", "community land trust", "CLT",
+    "mixed-income", "mixed-use", "acquisition", "pre-development",
+    "neighbourhood", "community development",
+
+    "climate", "resilience", "sustainable", "green", "environment",
+
+    "youth", "youth leadership", "community engagement"
+]
+
+# ----------------------------
+# DATE PARSER
+# ----------------------------
+def extract_deadline(text):
+    if not text:
         return None
-    except:
-        return None
 
+    patterns = [
+        r"([A-Za-z]+\s+\d{1,2},\s*\d{4})",
+        r"(\d{4}-\d{2}-\d{2})"
+    ]
 
-# --------------------------------------------------------
-# SCRAPERS
-# --------------------------------------------------------
+    for p in patterns:
+        match = re.search(p, text)
+        if match:
+            value = match.group(1)
+            try:
+                return datetime.strptime(value, "%B %d, %Y")
+            except:
+                try:
+                    return datetime.strptime(value, "%Y-%m-%d")
+                except:
+                    return None
+    return None
 
-def scrape_chrc():
-    """ Community Housing Transformation Centre """
-    url = "https://www.communityhousingtransformation.ca/"
-    html = safe_get(url)
-    if html is None: 
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for item in soup.find_all("div", class_="views-row"):
-        title_tag = item.find("a")
-        if not title_tag:
-            continue
-        title = title_tag.get_text(strip=True)
-        link = "https://www.communityhousingtransformation.ca" + title_tag["href"]
-        grants.append({
-            "Source": "CHTC",
-            "Title": title,
-            "Deadline": "Varies",
-            "Amount": "Varies",
-            "Category": "Housing / Capacity Building",
-            "Link": link
-        })
-    return grants
-
-
-def scrape_red_cross():
-    """ Red Cross Community Grants """
-    url = "https://www.redcross.ca/how-we-help/emergencies-and-disasters-in-canada/financial-assistance"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for li in soup.find_all("li"):
-        text = li.get_text(" ", strip=True)
-        if "fund" in text.lower() or "grant" in text.lower():
-            link = li.find("a")["href"] if li.find("a") else None
-            grants.append({
-                "Source": "Red Cross",
-                "Title": text,
-                "Deadline": "Varies",
-                "Amount": "Varies",
-                "Category": "Community Resilience / Youth",
-                "Link": link
-            })
-    return grants
-
-
-def scrape_cmhc_seed():
-    """ CMHC Seed Funding """
-    url = "https://www.cmhc-schl.gc.ca/en/financing-and-funding/funding-programs/all-funding-programs/seed-funding"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    title = soup.find("h1").get_text(strip=True)
-    return [{
-        "Source": "CMHC",
-        "Title": title,
-        "Deadline": "Ongoing",
-        "Amount": "Up to $350K (varies)",
-        "Category": "Affordable Housing",
-        "Link": url
-    }]
-
-
-def scrape_cmhc_co_invest():
-    """ CMHC Co-Investment Fund """
-    url = "https://www.cmhc-schl.gc.ca/en/financing-and-funding/funding-programs/co-investment-fund"
-    html = safe_get(url)
-    if html is None:
-        return []
-    return [{
-        "Source": "CMHC",
-        "Title": "Co-Investment Fund",
-        "Deadline": "Ongoing",
-        "Amount": "Large capital funding",
-        "Category": "Affordable Housing / Construction",
-        "Link": url
-    }]
-
-
-def scrape_infrastructure_canada():
-    """ Infrastructure Canada Programs """
-    url = "https://www.infrastructure.gc.ca/plan/programs-eng.html"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for li in soup.find_all("li"):
-        if li.find("a"):
-            title = li.get_text(strip=True)
-            link = li.find("a")["href"]
-            grants.append({
-                "Source": "Infrastructure Canada",
-                "Title": title,
-                "Deadline": "Varies",
-                "Amount": "Infrastructure funding",
-                "Category": "Infrastructure / Community",
-                "Link": link
-            })
-    return grants
-
-
-def scrape_hrm_grants():
-    """ HRM Community Grants """
-    url = "https://www.halifax.ca/community/community-grants"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for a in soup.find_all("a"):
-        title = a.get_text(strip=True)
-        link = a["href"]
-        if "grant" in title.lower():
-            grants.append({
-                "Source": "HRM",
-                "Title": title,
-                "Deadline": "Varies",
-                "Amount": "Varies",
-                "Category": "Municipal / Community",
-                "Link": link
-            })
-    return grants
-
-
-def scrape_united_way_halifax():
-    """ United Way Halifax """
-    url = "https://www.unitedwayhalifax.ca/"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for a in soup.find_all("a"):
-        title = a.get_text(strip=True)
-        if "grant" in title.lower() or "fund" in title.lower():
-            link = a["href"]
-            grants.append({
-                "Source": "United Way Halifax",
-                "Title": title,
-                "Deadline": "Varies",
-                "Amount": "Varies",
-                "Category": "Community / Poverty Reduction",
-                "Link": link
-            })
-    return grants
-
-
-def scrape_cfc():
-    """ Community Foundations of Canada """
-    url = "https://communityfoundations.ca/news/"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for item in soup.find_all("h3"):
-        title = item.get_text(strip=True)
-        if "grant" in title.lower() or "fund" in title.lower():
-            parent = item.find_parent("a")
-            link = parent["href"] if parent else None
-            grants.append({
-                "Source": "CFC",
-                "Title": title,
-                "Deadline": "Varies",
-                "Amount": "Varies",
-                "Category": "Community / National",
-                "Link": link
-            })
-    return grants
-
-
-def scrape_google_org():
-    """ Google.org Community Grants """
-    url = "https://www.google.org/"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for card in soup.find_all("a"):
-        text = card.get_text(strip=True)
-        if "grant" in text.lower() or "fund" in text.lower():
-            grants.append({
-                "Source": "Google.org",
-                "Title": text,
-                "Deadline": "Varies",
-                "Amount": "Large philanthropic grants",
-                "Category": "Tech / Community / Equity",
-                "Link": "https://www.google.org/"
-            })
-    return grants
-
-
-def scrape_td_ready_commitment():
-    """ TD Bank - Ready Commitment Grants """
-    url = "https://www.td.com/ca/en/about-td/ready-commitment/funding"
-    html = safe_get(url)
-    if html is None:
-        return []
-    return [{
-        "Source": "TD Ready Commitment",
-        "Title": "TD Community Grants",
-        "Deadline": "Varies",
-        "Amount": "Varies",
-        "Category": "Community / Equity",
-        "Link": url
-    }]
-
-
-def scrape_rbc_foundation():
-    """ RBC Foundation Grants """
-    url = "https://www.rbc.com/community-social-impact/programs.html"
-    html = safe_get(url)
-    if html is None:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    grants = []
-    for a in soup.find_all("a"):
-        title = a.get_text(strip=True)
-        if "grant" in title.lower() or "fund" in title.lower():
-            grants.append({
-                "Source": "RBC Foundation",
-                "Title": title,
-                "Deadline": "Varies",
-                "Amount": "Varies",
-                "Category": "Youth / Community / Equity",
-                "Link": a["href"]
-            })
-    return grants
-
-
-def scrape_vancity():
-    """ Vancity Grants """
-    url = "https://www.vancity.com/AboutVancity/Community"
-    html = safe_get(url)
-    if html is None:
-        return []
-    return [{
-        "Source": "Vancity",
-        "Title": "Vancity Community Grants",
-        "Deadline": "Varies",
-        "Amount": "Varies",
-        "Category": "Community / Social Impact",
-        "Link": url
-    }]
-
-
-# --------------------------------------------------------
-# LOAD EVERYTHING
-# --------------------------------------------------------
-@st.cache_data(ttl=7200)
+# ----------------------------
+# LOAD SCRAPED DATA
+# ----------------------------
+@st.cache_data(ttl=3600)
 def load_all():
-    df = pd.DataFrame([
-        *scrape_chrc(),
-        *scrape_red_cross(),
-        *scrape_cmhc_seed(),
-        *scrape_cmhc_co_invest(),
-        *scrape_infrastructure_canada(),
-        *scrape_hrm_grants(),
-        *scrape_united_way_halifax(),
-        *scrape_cfc(),
-        *scrape_google_org(),
-        *scrape_td_ready_commitment(),
-        *scrape_rbc_foundation(),
-        *scrape_vancity(),
-    ])
+    # Use your expanded scraping code here (CHTC, CMHC, HRM, etc.)
+    from grant_scrapers import scrape_all_sources  # You can modularize
+    df = scrape_all_sources()
+
+    # Parse deadlines
+    df["Deadline_Date"] = df["Deadline"].apply(extract_deadline)
+
+    # Keep only grants with real dates
+    df = df.dropna(subset=["Deadline_Date"])
+
+    # Future-only (post-2026)
+    cutoff = datetime(2026, 1, 1)
+    df = df[df["Deadline_Date"] >= cutoff]
+
+    # Apply New Roots keyword filtering
+    def matches(grant):
+        text = (grant["Title"] + " " + grant.get("Description", "")).lower()
+        return any(kw in text for kw in NEW_ROOTS_KEYWORDS)
+
+    df = df[df.apply(matches, axis=1)]
+
     return df
 
 df = load_all()
 
-# --------------------------------------------------------
-# FILTERS
-# --------------------------------------------------------
-st.sidebar.header("🔍 Filters")
+# ----------------------------
+# DISPLAY
+# ----------------------------
+st.subheader("🔎 Future Funding Opportunities (Aligned to New Roots Priorities)")
+st.write("Filtered to **post-January 2026** and **relevant themes** such as anti-Black racism, financial literacy, ANS community, housing equity, youth, and climate resilience.")
 
-keyword = st.sidebar.text_input("Search keyword")
+st.dataframe(df, use_container_width=True, hide_index=True)
 
-source_filter = st.sidebar.multiselect("Filter by Source", df["Source"].unique(), df["Source"].unique())
-category_filter = st.sidebar.multiselect("Filter by Category", df["Category"].unique(), df["Category"].unique())
-
-results = df[
-    (df["Source"].isin(source_filter)) & 
-    (df["Category"].isin(category_filter))
-]
-
-if keyword:
-    results = results[results["Title"].str.contains(keyword, case=False)]
-
-# --------------------------------------------------------
-# DISPLAY RESULTS
-# --------------------------------------------------------
-st.subheader("📑 Funding Opportunities")
-st.dataframe(results, use_container_width=True)
-
-st.download_button(
-    "📥 Download CSV",
-    results.to_csv(index=False),
-    "new_roots_grants.csv"
-)
+st.download_button("📥 Download CSV", df.to_csv(index=False), "new_roots_future_grants.csv")
